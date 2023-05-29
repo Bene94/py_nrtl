@@ -75,6 +75,7 @@ class Dual3:
         return self.chain_rule(s, 0.5 / s, -0.25 / (s * s * s))
 
     def dot(self, other):
+        return # IMPLEMENT ME
         
 
 Dual3.__radd__ = Dual3.__add__
