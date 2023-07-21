@@ -1,8 +1,10 @@
-use ndarray::{Array1, Array2, s};
-use numpy::{IntoPyArray, PyArray1, PyArray2};
+use ndarray::{Array1, Array2, Array3, Axis, s};
+use numpy::{IntoPyArray, PyArray1, PyArray2, PyArray3};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use std::f64::consts::E;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 #[pyfunction]
 fn calc_lle_py(
@@ -37,13 +39,109 @@ fn get_gamma_py(
     Ok(gamma_x.into_pyarray(py).to_owned())
 }
 
+#[pyfunction]
+fn calc_lle_par_py(
+    py: Python,
+    alpha: &PyArray3<f64>,
+    tau: &PyArray3<f64>,
+    z: &PyArray2<f64>,
+    x0: &PyArray2<f64>,
+) -> PyResult<(Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray1<f64>>)> {
+    let alpha_array = unsafe { alpha.as_array().to_owned() };
+    let tau_array = unsafe { tau.as_array().to_owned() };
+    let z_array = unsafe { z.as_array().to_owned() };
+    let x0_array = unsafe { x0.as_array().to_owned() };
+
+    let (x, y, beta) = calc_lle_par(&alpha_array, &tau_array, &z_array, &x0_array);
+    Ok((x.into_pyarray(py).to_owned(), y.into_pyarray(py).to_owned(), beta.into_pyarray(py).to_owned()))
+}
+
+#[pyfunction]
+fn get_gamma_par_py(
+    py: Python,
+    x: &PyArray2<f64>,
+    alpha: &PyArray3<f64>,
+    tau: &PyArray3<f64>,
+) -> PyResult<Py<PyArray2<f64>>> {
+    let x_array = unsafe { x.as_array().to_owned() };
+    let alpha_array = unsafe { alpha.as_array().to_owned() };
+    let tau_array = unsafe { tau.as_array().to_owned() };
+
+    let gamma_x = get_gamma_par(&x_array, &alpha_array, &tau_array);
+
+    Ok(gamma_x.into_pyarray(py).to_owned())
+}
+
 
 #[pymodule]
 fn py_nrtl(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(calc_lle_py))?;
     m.add_wrapped(wrap_pyfunction!(get_gamma_py))?;
+    m.add_wrapped(wrap_pyfunction!(calc_lle_par_py))?;
+    m.add_wrapped(wrap_pyfunction!(get_gamma_par_py))?;
 
     Ok(())
+}
+
+fn calc_lle_par(
+    alpha: &Array3<f64>,
+    tau: &Array3<f64>,
+    z: &Array2<f64>,
+    x0: &Array2<f64>,
+) -> (Array2<f64>, Array2<f64>, Array1<f64>) {
+    let xs = Arc::new(Mutex::new(Vec::new()));
+    let ys = Arc::new(Mutex::new(Vec::new()));
+    let betas = Arc::new(Mutex::new(Vec::new()));
+
+    let alpha_vec: Vec<_> = alpha.axis_iter(Axis(0)).collect();
+    let tau_vec: Vec<_> = tau.axis_iter(Axis(0)).collect();
+    let z_vec: Vec<_> = z.axis_iter(Axis(0)).collect();
+    let x0_vec: Vec<_> = x0.axis_iter(Axis(0)).collect();
+
+    alpha_vec.par_iter()
+        .zip(tau_vec.par_iter())
+        .zip(z_vec.par_iter())
+        .zip(x0_vec.par_iter())
+        .for_each(|(((alpha, tau), z), x0)| {
+            let (x, y, beta) = calc_lle(&alpha.into_owned(), &tau.into_owned(), &z.into_owned(), &x0.into_owned());
+            xs.lock().unwrap().push(x);
+            ys.lock().unwrap().push(y);
+            betas.lock().unwrap().push(beta);
+        });
+
+    let xs_guard = xs.lock().unwrap();
+    let ys_guard = ys.lock().unwrap();
+    let betas_guard = betas.lock().unwrap();
+
+    (
+        Array2::from_shape_vec((xs_guard.len(), xs_guard[0].len()), xs_guard.clone().into_iter().flatten().collect()).unwrap(),
+        Array2::from_shape_vec((ys_guard.len(), ys_guard[0].len()), ys_guard.clone().into_iter().flatten().collect()).unwrap(),
+        Array1::from_vec(betas_guard.clone())
+    )
+}
+
+fn get_gamma_par(
+    x: &Array2<f64>,
+    alpha: &Array3<f64>,
+    tau: &Array3<f64>,
+) -> Array2<f64> {
+    let gammas = Arc::new(Mutex::new(Vec::new()));
+
+    let x_vec: Vec<_> = x.axis_iter(Axis(0)).collect();
+    let alpha_vec: Vec<_> = alpha.axis_iter(Axis(0)).collect();
+    let tau_vec: Vec<_> = tau.axis_iter(Axis(0)).collect();
+
+    x_vec.par_iter()
+        .zip(alpha_vec.par_iter())
+        .zip(tau_vec.par_iter())
+        .for_each(|((x, alpha), tau)| {
+            let gamma_x = get_gamma(&x.into_owned(), &alpha.into_owned(), &tau.into_owned());
+            gammas.lock().unwrap().push(gamma_x);
+        });
+
+    let gammas_guard = gammas.lock().unwrap();
+
+    Array2::from_shape_vec((gammas_guard.len(), gammas_guard[0].len()), gammas_guard.clone().into_iter().flatten().collect()).unwrap()
 }
 
 fn calc_lle(
@@ -55,9 +153,9 @@ fn calc_lle(
     let beta = 0.5;
     let n_comp = z.len();
     let nitermax = 200;
-    let tol_mu = 1e-10;
-    let tol_beta = 1e-10;
-    let tol_gbeta = 1e-10;
+    let tol_mu = 1e-6;
+    let tol_beta = 1e-6;
+    let tol_gbeta = 1e-6;
 
     let mut beta_out = 0.0;
     let mut x = x0.clone();
@@ -83,6 +181,7 @@ fn calc_lle(
         if beta_new < tol_beta || beta_new > (1.0 - tol_beta)  {
             x = z.clone();
             y = z.clone();
+            beta_out = 0.9999;
             break;
         }
 

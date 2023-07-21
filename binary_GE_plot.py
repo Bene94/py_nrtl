@@ -86,8 +86,8 @@ alpha = np.array([[0. , 0.23449744],
 tau = np.array([[0. , 1.1661877 ],
                 [1.17877817, 0. ]])
 
-alpha = np.array([[0. , 0.2341091], [0.2341091, 0. ]])
-tau = np.array([[0. , 1.36579808], [1.38160984, 0. ]])
+#alpha = np.array([[0. , 0.2341091], [0.2341091, 0. ]])
+#tau = np.array([[0. , 2.36579808], [2.38160984, 0. ]])
 
 x1, gibbs_mix, gibbs_mix_derive, gibbs_mix_derive2 = binary_mixture_g_profile(alpha, tau)
 
@@ -131,6 +131,7 @@ plt.xlabel("Mole Fraction of x1", fontsize=14)
 plt.ylabel("d Gibbs Free Energy of Mixing (J/mol)", fontsize=14)
 plt.title("Gibbs Free Energy of Mixing vs. Composition", fontsize=16)
 plt.grid(True)
+plt.ylim(-1e5, 1e5)
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
 plt.xlim(0, 1)
