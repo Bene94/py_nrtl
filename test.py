@@ -89,12 +89,12 @@ time_end_rust_par = time.time()
 
 
 print("Runtimes:")
-print("Rust: ", np.round(time_end_rust - time_start_rust,3), "ms")
-print("Python: ", np.round(time_end_python - time_start_python,2), "ms")
-print("Empty Loop: ", np.round(time_end_empty_loop - time_start_empty_loop,2), "ms")
+print("Rust: ", np.round(time_end_rust - time_start_rust,3), "s")
+print("Python: ", np.round(time_end_python - time_start_python,2), "s")
+print("Empty Loop: ", np.round(time_end_empty_loop - time_start_empty_loop,2), "s")
 print("Speedup: ", np.round((time_end_python - time_start_python)/(time_end_rust - time_start_rust),2))
 
 
 print("Parallel Runtimes:")
-print("Rust parallel: ", np.round(time_end_rust_par - time_start_rust_par,3), "ms")
+print("Rust parallel: ", np.round(time_end_rust_par - time_start_rust_par,3), "s")
 print("Speedup: ", np.round((time_end_python - time_start_python)/(time_end_rust_par - time_start_rust_par),2))

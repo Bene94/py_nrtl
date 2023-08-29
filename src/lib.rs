@@ -153,9 +153,9 @@ fn calc_lle(
     let beta = 0.5;
     let n_comp = z.len();
     let nitermax = 200;
-    let tol_mu = 1e-6;
-    let tol_beta = 1e-6;
-    let tol_gbeta = 1e-6;
+    let tol_mu = 1e-9;
+    let tol_beta = 1e-9;
+    let tol_gbeta = 1e-9;
 
     let mut beta_out = 0.0;
     let mut x = x0.clone();
@@ -251,7 +251,7 @@ fn rrsolver(
     tol_gbeta: f64,
 ) -> (f64, Array1<f64>, Array1<f64>) {
     let mut beta = 0.5;
-    let mut beta_min = 1e-8;
+    let mut beta_min = 1e-10;
     let mut beta_max = 1.0 - beta_min;
 
     let mut delta_beta = 1.0;
