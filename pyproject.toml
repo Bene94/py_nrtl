@@ -1,0 +1,7 @@
+[build-system]
+requires = ["maturin"]
+build-backend = "maturin"
+
+[project]
+name = "py_nrtl"
+version = "0.1.0"

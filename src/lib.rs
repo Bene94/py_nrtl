@@ -113,6 +113,7 @@ fn calc_lle_par(
     let ys_guard = ys.lock().unwrap();
     let betas_guard = betas.lock().unwrap();
 
+
     (
         Array2::from_shape_vec((xs_guard.len(), xs_guard[0].len()), xs_guard.clone().into_iter().flatten().collect()).unwrap(),
         Array2::from_shape_vec((ys_guard.len(), ys_guard[0].len()), ys_guard.clone().into_iter().flatten().collect()).unwrap(),
@@ -193,6 +194,12 @@ fn calc_lle(
         k = &gamma_x / &gamma_y;
         delta_mu = (&gamma_y * &y - &gamma_x * &x).mapv(f64::abs);
         beta_out = beta_new;
+    }
+
+    if nit == nitermax && delta_mu.iter().cloned().fold(f64::MIN, f64::max) > tol_mu {
+        x = z.clone();
+        y = z.clone();
+        beta_out = 0.9999;
     }
 
     (x, y, beta_out)
