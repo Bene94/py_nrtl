@@ -12,7 +12,7 @@ def calc_LLE(alpha,tau, z, x0):
 
     beta = 0.5
     n_comp = len(z)
-    nitermax = 200;             # increasing nitermax to 2000 did not help
+    nitermax = 100;             # increasing nitermax to 2000 did not help
     TOL_mu = 1e-6
     TOL_beta = 1e-6
     TOL_gbeta = 1e-6

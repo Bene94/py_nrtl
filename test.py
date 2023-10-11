@@ -33,13 +33,13 @@ tau = np.array([
 ])
 
 alpha = np.array([
-    [0.0, -1.38],
-    [-1.38, 0.0]
+    [0.0, 0.1515],
+    [0.1515, 0.0]
 ])
 
 tau = np.array([
-    [0.0, 0.72],
-    [0.91, 0.0]
+    [0.0, 1.2806],
+    [1.4054, 0.0]
 ])
 
 #alpha = np.array([[0. , 0.23449744],
@@ -61,13 +61,13 @@ taus = np.stack([tau for _ in range(1000)], axis=0)
 zs = np.stack([z for _ in range(1000)], axis=0)
 x0s = np.stack([x0 for _ in range(1000)], axis=0)
 
-print(py_nrtl.calc_lle_py(alpha, tau, z, x0))
+print(py_nrtl.calc_lle_py(alpha, tau, z, x0, 1e-6, 100))
 print(calc_LLE(alpha, tau, z, x0))
-out = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s)
+out = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s, 1e-6, 100)
 print((out[0][0], out[1][0], out[2][0]))
 time_start_rust = time.time()
 for i in range(1000):
-    x, y, __ = py_nrtl.calc_lle_py(alpha, tau, z, x0)
+    x, y, __ = py_nrtl.calc_lle_py(alpha, tau, z, x0, 1e-6, 100)
 time_end_rust = time.time()
 
 time_start_python = time.time()
@@ -84,7 +84,7 @@ time_end_empty_loop = time.time()
 
 
 time_start_rust_par = time.time()
-x_par, y_par, beta_par = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s)
+x_par, y_par, beta_par = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s, 1e-6, 100)
 time_end_rust_par = time.time()
 
 
