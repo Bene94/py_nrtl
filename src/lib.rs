@@ -19,7 +19,7 @@ fn calc_lle_py(
     let z_array = unsafe { z.as_array().to_owned() };
     let x0_array = unsafe { x0.as_array().to_owned() };
 
-    let (x, y, beta, gamma_x, gamma_y) = calc_lle(&alpha_array, &tau_array, &z_array, &x0_array);
+    let (x, y, beta) = calc_lle(&alpha_array, &tau_array, &z_array, &x0_array);
     Ok((x.into_pyarray(py).to_owned(), y.into_pyarray(py).to_owned(), beta.to_owned()))
 }
 
