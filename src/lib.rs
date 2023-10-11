@@ -19,7 +19,7 @@ fn calc_lle_py(
     let z_array = unsafe { z.as_array().to_owned() };
     let x0_array = unsafe { x0.as_array().to_owned() };
 
-    let (x, y, beta) = calc_lle(&alpha_array, &tau_array, &z_array, &x0_array);
+    let (x, y, beta, gamma_x, gamma_y) = calc_lle(&alpha_array, &tau_array, &z_array, &x0_array);
     Ok((x.into_pyarray(py).to_owned(), y.into_pyarray(py).to_owned(), beta.to_owned()))
 }
 
@@ -113,6 +113,7 @@ fn calc_lle_par(
     let ys_guard = ys.lock().unwrap();
     let betas_guard = betas.lock().unwrap();
 
+
     (
         Array2::from_shape_vec((xs_guard.len(), xs_guard[0].len()), xs_guard.clone().into_iter().flatten().collect()).unwrap(),
         Array2::from_shape_vec((ys_guard.len(), ys_guard[0].len()), ys_guard.clone().into_iter().flatten().collect()).unwrap(),
@@ -152,7 +153,7 @@ fn calc_lle(
 ) -> (Array1<f64>, Array1<f64>, f64) {
     let beta = 0.5;
     let n_comp = z.len();
-    let nitermax = 200;
+    let nitermax = 500;
     let tol_mu = 1e-6;
     let tol_beta = 1e-6;
     let tol_gbeta = 1e-6;
@@ -193,6 +194,11 @@ fn calc_lle(
         k = &gamma_x / &gamma_y;
         delta_mu = (&gamma_y * &y - &gamma_x * &x).mapv(f64::abs);
         beta_out = beta_new;
+    }
+    if nit == nitermax && delta_mu.iter().cloned().fold(f64::MIN, f64::max) > tol_mu {
+        x = z.clone();
+        y = z.clone();
+        beta_out = 0.9999;
     }
 
     (x, y, beta_out)
