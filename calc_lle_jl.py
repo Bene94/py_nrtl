@@ -1,21 +1,20 @@
 ## Python module for LLE calculation
 
 import math
-import numpy as np
-import os
 
+import numpy as np
+import torch
 
 def calc_LLE(alpha,tau, z, x0):
     # Calculate a phase split between using the NRTL model
     # Set tolerances
 
-
     beta = 0.5
     n_comp = len(z)
-    nitermax = 100;             # increasing nitermax to 2000 did not help
-    TOL_mu = 1e-6
-    TOL_beta = 1e-6
-    TOL_gbeta = 1e-6
+    nitermax = 100;
+    TOL_mu = 1e-6;
+    TOL_beta = 1e-6;
+    TOL_gbeta = 1e-6;
     
     x = x0
     y = np.zeros(n_comp)
@@ -33,10 +32,10 @@ def calc_LLE(alpha,tau, z, x0):
 
     # RR-Algorithm
 
-    nit=0
-    while nit < nitermax  and  np.amax(delta_mu) > TOL_mu:   
-        nit = nit + 1
-        [beta,x,y] = RRSOLVER(n_comp, z, K, nitermax, TOL_beta, TOL_gbeta)
+    nit=0;
+    while nit < nitermax  and  np.amax(delta_mu) > TOL_mu: 
+        nit = nit + 1;
+        [beta,x,y] = RRSOLVER(n_comp, z, K, nitermax, TOL_beta, TOL_gbeta);
         if beta < TOL_beta:
             x=z
             y=z
@@ -44,19 +43,21 @@ def calc_LLE(alpha,tau, z, x0):
         elif beta >= (1-TOL_beta):
             x=z
             y=z
+            beta = 1
             break
-        
         gamma_x = get_gamma(x, alpha, tau)
         gamma_y = get_gamma(y, alpha, tau)
 
-        K = gamma_x / gamma_y
+        K = gamma_x / gamma_y;
         delta_mu = np.absolute(gamma_y * y - gamma_x * x)
-    if nit == nitermax:
-        print('Warning: LLE calculation did not converge')
-        return z, z, 0.9999
+        if nit == nitermax:  # added by JL
+            x=z                                            # added by JL
+            y=z   
+            beta=1                                         # added by JL
+  
   
 ## Results
-    return x , y, beta 
+    return x , y, beta
         
 def get_gamma(x, alpha, tau):
     #NRTL activity coefficient calculation
@@ -68,11 +69,11 @@ def get_gamma(x, alpha, tau):
     n_comp = len(x)
    
 # G
-    G=np.identity(n_comp)
+    G=np.identity(n_comp);
     for i in range(n_comp):
         for j in range(n_comp):
             if i!=j:
-                G[i,j] = math.exp(-alpha[i,j]*tau[i,j])
+                G[i,j] = math.exp(-alpha[i,j]*tau[i,j]);
         
 #B(i)
     B = np.zeros(n_comp)
@@ -86,19 +87,19 @@ def get_gamma(x, alpha, tau):
     for i in range(n_comp):
         A[i]=0
         for l in range(n_comp):
-            A[i] = A[i] + G[l,i]*x[l]
+            A[i] = A[i] + G[l,i]*x[l];
 # gamma(i)
     summe_lngamma = np.zeros(n_comp)
     for i in range(n_comp):
-        summe_lngamma[i]=0
+        summe_lngamma[i]=0;
         for j in range(n_comp):
             summe_lngamma[i] = summe_lngamma[i] + x[j]*G[i,j]/ A[j]*(tau[i,j]-B[j]/A[j])
     
     gamma = np.zeros(n_comp)
     lngamma = np.zeros(n_comp)
     for i in range(n_comp):
-        lngamma[i] = B[i]/A[i]+summe_lngamma[i]
-        gamma[i] = np.exp(lngamma[i])
+        lngamma[i] = B[i]/A[i]+summe_lngamma[i];
+        gamma[i] = np.exp(lngamma[i]);
 
     
     return gamma
@@ -115,28 +116,28 @@ def RRSOLVER(nc, z, K, ni, TOL_beta, TOL_gbeta):
     # ni: number of iterations
 
     beta = 0.5
-    beta_min = 1e-1
+    beta_min = 1e-4
     beta_max = 1-beta_min
-    #beta_max = 1/(1-min(K))
-    #beta_min = -1/(max(K)-1)
+#     beta_max = 1/(1-min(K));
+#     beta_min = -1/(max(K)-1);
 
-    delta_beta = 1
-
+    delta_beta = 1;
+   
     for zaehler in range(ni):
-        g = 0
-        g_alt = g
+        g = 0;
+        g_alt = g;
         for i in range(nc):
-            g = g + z[i] *(K[i]-1) / (1-beta+beta * K[i])
+            g = g + z[i] *(K[i]-1) / (1-beta+beta * K[i]);
            
         if g < 0:
             beta_max = beta
         else: 
             beta_min = beta
                 
-        g_strich = 0
+        g_strich = 0;
 
         for i in range(nc):
-            g_strich = g_strich - (np.sqrt(z[i])*(K[i]-1)/(beta*K[i]-beta+1))**2  #- z[i]*(K[i]-1)**2/(beta*K[i]-beta+1)**2
+            g_strich = g_strich - z[i]*(K[i]-1)**2/(beta*K[i]-beta+1)**2
         
         beta_neu = beta - g/g_strich
 
@@ -151,7 +152,7 @@ def RRSOLVER(nc, z, K, ni, TOL_beta, TOL_gbeta):
         
         #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        delta_g = abs(g_alt - g)
+        delta_g = abs(g_alt - g);
         
         if delta_beta <= TOL_beta and delta_g <= TOL_gbeta:
             break
@@ -169,3 +170,5 @@ def RRSOLVER(nc, z, K, ni, TOL_beta, TOL_gbeta):
             y[i] = v[i]/beta   
 
     return beta,x,y
+
+

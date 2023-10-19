@@ -89,35 +89,31 @@ fn calc_lle_par(
     z: &Array2<f64>,
     x0: &Array2<f64>,
 ) -> (Array2<f64>, Array2<f64>, Array1<f64>) {
-    let xs = Arc::new(Mutex::new(Vec::new()));
-    let ys = Arc::new(Mutex::new(Vec::new()));
-    let betas = Arc::new(Mutex::new(Vec::new()));
+    let n = alpha.shape()[0];
+    let xs = Arc::new(Mutex::new(vec![None; n]));
+    let ys = Arc::new(Mutex::new(vec![None; n]));
+    let betas = Arc::new(Mutex::new(vec![None; n]));
 
-    let alpha_vec: Vec<_> = alpha.axis_iter(Axis(0)).collect();
-    let tau_vec: Vec<_> = tau.axis_iter(Axis(0)).collect();
-    let z_vec: Vec<_> = z.axis_iter(Axis(0)).collect();
-    let x0_vec: Vec<_> = x0.axis_iter(Axis(0)).collect();
-
-    alpha_vec.par_iter()
-        .zip(tau_vec.par_iter())
-        .zip(z_vec.par_iter())
-        .zip(x0_vec.par_iter())
-        .for_each(|(((alpha, tau), z), x0)| {
-            let (x, y, beta) = calc_lle(&alpha.into_owned(), &tau.into_owned(), &z.into_owned(), &x0.into_owned());
-            xs.lock().unwrap().push(x);
-            ys.lock().unwrap().push(y);
-            betas.lock().unwrap().push(beta);
-        });
+    (0..n).into_par_iter().for_each(|i| {
+        let (x, y, beta) = calc_lle(
+            &alpha.slice(s![i, .., ..]).to_owned(),
+            &tau.slice(s![i, .., ..]).to_owned(),
+            &z.row(i).to_owned(),
+            &x0.row(i).to_owned()
+        );
+        xs.lock().unwrap()[i] = Some(x);
+        ys.lock().unwrap()[i] = Some(y);
+        betas.lock().unwrap()[i] = Some(beta);
+    });
 
     let xs_guard = xs.lock().unwrap();
     let ys_guard = ys.lock().unwrap();
     let betas_guard = betas.lock().unwrap();
 
-
     (
-        Array2::from_shape_vec((xs_guard.len(), xs_guard[0].len()), xs_guard.clone().into_iter().flatten().collect()).unwrap(),
-        Array2::from_shape_vec((ys_guard.len(), ys_guard[0].len()), ys_guard.clone().into_iter().flatten().collect()).unwrap(),
-        Array1::from_vec(betas_guard.clone())
+        Array2::from_shape_vec((n, xs_guard[0].as_ref().unwrap().len()), xs_guard.iter().flat_map(|o| o.as_ref().unwrap().iter()).cloned().collect()).unwrap(),
+        Array2::from_shape_vec((n, ys_guard[0].as_ref().unwrap().len()), ys_guard.iter().flat_map(|o| o.as_ref().unwrap().iter()).cloned().collect()).unwrap(),
+        Array1::from_vec(betas_guard.iter().map(|o| o.as_ref().unwrap().clone()).collect())
     )
 }
 
@@ -153,14 +149,20 @@ fn calc_lle(
 ) -> (Array1<f64>, Array1<f64>, f64) {
     let beta = 0.5;
     let n_comp = z.len();
-    let nitermax = 200;
-    let tol_mu = 1e-9;
-    let tol_beta = 1e-9;
-    let tol_gbeta = 1e-9;
+    let nitermax = 100;
+    let tol_mu = 1e-6;
+    let tol_beta = 1e-6;
+    let tol_gbeta = 1e-6;
 
     let mut beta_out = 0.0;
     let mut x = x0.clone();
     let mut y = Array1::<f64>::zeros(n_comp);
+
+    // Print out the input
+    println!("alpha: {alpha}");
+    println!("tau: {tau}");
+    println!("z: {z}");
+    println!("x0: {x0}");
 
     for i in 0..(n_comp - 1) {
         y[i] = (z[i] - (1.0 - beta) * x[i]) / beta;
