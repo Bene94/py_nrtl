@@ -191,7 +191,7 @@ fn calc_lle(
         if beta_new < tol_beta || beta_new > (1.0 - tol_beta)  {
             x = z.clone();
             y = z.clone();
-            beta_out = 0.9999;
+            beta_out = 1.0;
             break;
         }
 
@@ -208,7 +208,7 @@ fn calc_lle(
     if nit == nitermax && delta_mu.iter().cloned().fold(f64::MIN, f64::max) > tol_mu {
         x = z.clone();
         y = z.clone();
-        beta_out = 0.9999;
+        beta_out = 1.0;
     }
 
     (x, y, beta_out)
