@@ -118,14 +118,14 @@ zs = np.stack([z for _ in range(n)], axis=0)
 x0s = np.stack([x0 for _ in range(n)], axis=0)
 #x0_tensor = torch.tensor(x0s)
 
-print(py_nrtl.calc_lle_py(alpha, tau, z, x0))
+print(py_nrtl.calc_lle_py(alpha, tau, z, x0, 1e-6, 100))
 print(calc_LLE(alpha, tau, z, x0))
 #out = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s, 1e-6, 100)
-out = py_nrtl.calc_lle_par_py(alpha_matrix.detach().cpu().numpy(), tau_matrix.detach().cpu().numpy(), zs, x0s) # 
+out = py_nrtl.calc_lle_par_py(alpha_matrix.detach().cpu().numpy(), tau_matrix.detach().cpu().numpy(), zs, x0s, 1e-6, 100) # 
 print((out[0][0], out[1][0], out[2][0]))
-out2 = py_nrtl.calc_lle_par_py(alpha_matrix2, tau_matrix2, zs, x0s)
+out2 = py_nrtl.calc_lle_par_py(alpha_matrix2, tau_matrix2, zs, x0s, 1e-6, 100)
 print((out2[0][0], out2[1][0], out2[2][0]))
-out3 = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s)
+out3 = py_nrtl.calc_lle_par_py(alphas, taus, zs, x0s, 1e-6, 100)
 print((out3[0][0], out3[1][0], out3[2][0]))
 time_start_rust = time.time()
 if False:

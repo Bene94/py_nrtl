@@ -13,13 +13,15 @@ fn calc_lle_py(
     tau: &PyArray2<f64>,
     z: &PyArray1<f64>,
     x0: &PyArray1<f64>,
+    tol: f64,
+    nitermax: usize,
 ) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>, f64)> {
     let alpha_array = unsafe { alpha.as_array().to_owned() };
     let tau_array = unsafe { tau.as_array().to_owned() };
     let z_array = unsafe { z.as_array().to_owned() };
     let x0_array = unsafe { x0.as_array().to_owned() };
 
-    let (x, y, beta) = calc_lle(&alpha_array, &tau_array, &z_array, &x0_array);
+    let (x, y, beta) = calc_lle(&alpha_array, &tau_array, &z_array, &x0_array, tol, nitermax);
     Ok((x.into_pyarray(py).to_owned(), y.into_pyarray(py).to_owned(), beta.to_owned()))
 }
 
@@ -46,13 +48,15 @@ fn calc_lle_par_py(
     tau: &PyArray3<f64>,
     z: &PyArray2<f64>,
     x0: &PyArray2<f64>,
+    tol: f64,
+    nitermax: usize,
 ) -> PyResult<(Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray1<f64>>)> {
     let alpha_array = unsafe { alpha.as_array().to_owned() };
     let tau_array = unsafe { tau.as_array().to_owned() };
     let z_array = unsafe { z.as_array().to_owned() };
     let x0_array = unsafe { x0.as_array().to_owned() };
 
-    let (x, y, beta) = calc_lle_par(&alpha_array, &tau_array, &z_array, &x0_array);
+    let (x, y, beta) = calc_lle_par(&alpha_array, &tau_array, &z_array, &x0_array, tol, nitermax);
     Ok((x.into_pyarray(py).to_owned(), y.into_pyarray(py).to_owned(), beta.into_pyarray(py).to_owned()))
 }
 
@@ -88,24 +92,32 @@ fn calc_lle_par(
     tau: &Array3<f64>,
     z: &Array2<f64>,
     x0: &Array2<f64>,
+    tol: f64,
+    nitermax: usize,
 ) -> (Array2<f64>, Array2<f64>, Array1<f64>) {
+    
     let n = alpha.shape()[0];
     let xs = Arc::new(Mutex::new(vec![None; n]));
     let ys = Arc::new(Mutex::new(vec![None; n]));
     let betas = Arc::new(Mutex::new(vec![None; n]));
+
+    let alpha_vec: Vec<_> = alpha.axis_iter(Axis(0)).collect();
+    let tau_vec: Vec<_> = tau.axis_iter(Axis(0)).collect();
+    let z_vec: Vec<_> = z.axis_iter(Axis(0)).collect();
+    let x0_vec: Vec<_> = x0.axis_iter(Axis(0)).collect();
 
     (0..n).into_par_iter().for_each(|i| {
         let (x, y, beta) = calc_lle(
             &alpha.slice(s![i, .., ..]).to_owned(),
             &tau.slice(s![i, .., ..]).to_owned(),
             &z.row(i).to_owned(),
-            &x0.row(i).to_owned()
+            &x0.row(i).to_owned(), tol, nitermax
         );
         xs.lock().unwrap()[i] = Some(x);
         ys.lock().unwrap()[i] = Some(y);
         betas.lock().unwrap()[i] = Some(beta);
     });
-
+    
     let xs_guard = xs.lock().unwrap();
     let ys_guard = ys.lock().unwrap();
     let betas_guard = betas.lock().unwrap();
@@ -146,13 +158,15 @@ fn calc_lle(
     tau: &Array2<f64>,
     z: &Array1<f64>,
     x0: &Array1<f64>,
+    tol: f64,
+    nitermax: usize,
 ) -> (Array1<f64>, Array1<f64>, f64) {
     let beta = 0.5;
     let n_comp = z.len();
-    let nitermax = 100;
-    let tol_mu = 1e-6;
-    let tol_beta = 1e-6;
-    let tol_gbeta = 1e-6;
+    let nitermax = nitermax;
+    let tol_mu = tol;
+    let tol_beta = tol;
+    let tol_gbeta = tol;
 
     let mut beta_out = 0.0;
     let mut x = x0.clone();
