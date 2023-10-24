@@ -172,12 +172,6 @@ fn calc_lle(
     let mut x = x0.clone();
     let mut y = Array1::<f64>::zeros(n_comp);
 
-    // Print out the input
-    println!("alpha: {alpha}");
-    println!("tau: {tau}");
-    println!("z: {z}");
-    println!("x0: {x0}");
-
     for i in 0..(n_comp - 1) {
         y[i] = (z[i] - (1.0 - beta) * x[i]) / beta;
     }
